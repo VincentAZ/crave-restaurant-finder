@@ -26,6 +26,10 @@
 
 > **Bring your appetite—and a Geoapify key.** Restaurant search requires a key from your own Geoapify account. Save it once per browser through **Connect restaurant search**. The interface and food quiz can be explored before connecting. Live provider speed and results have not yet been verified with an account key.
 
+![Crave running on Vercel: food quiz, ZIP search, and the loaded Phoenix map](docs/crave-app.jpg)
+
+*Actual deployed interface before connecting a Geoapify key; no restaurant results are simulated.*
+
 ## Dinner, without the debate
 
 You know the feeling: everyone’s hungry, nobody has a plan, and another endless list of restaurants isn’t helping.
@@ -179,6 +183,8 @@ vercel.json        Static deployment configuration
 ## Verification
 
 The current suite contains **43 passing tests** covering cuisine ranking, conflicting preferences, travel boundaries, missing routes, cancellation, timeouts, ownership evidence, editable ratings, cache expiry, provider errors, and a simulated ZIP → places → route-matrix flow.
+
+The production Vercel page was also checked in Chrome: the map loaded, rating a dish worked, the editable list reflected the choice, and Undo restored the previous answer. No console errors were observed during those checks.
 
 Provider tests use explicit fixtures. They do **not** prove live Geoapify availability or latency. Successful live restaurant searches and complete browser verification still require a configured account key. No fixture restaurants are shipped as app results.
 
