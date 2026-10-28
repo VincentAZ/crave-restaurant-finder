@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
+<title id="title">Crave — Follow your appetite</title><desc id="desc">Cream and forest-green Crave wordmark with an orange plate illustration and the words Rate your cravings. Find your next favorite bite.</desc>
+<rect width="1280" height="360" rx="24" fill="#f6f5ef"/>
+<circle cx="1125" cy="165" r="240" fill="#e9eddf"/>
+<circle cx="1100" cy="180" r="125" fill="#f6f5ef" stroke="#72825e" stroke-width="2"/>
+<circle cx="1100" cy="180" r="90" fill="none" stroke="#d4dcc5" stroke-width="2"/>
+<path d="M1060 153q40-58 80 0l-40 70z" fill="#ef9368" stroke="#d95532" stroke-width="5" stroke-linejoin="round"/>
+<path d="M1058 151q42-59 84 0" fill="none" stroke="#dfb278" stroke-width="15" stroke-linecap="round"/>
+<circle cx="1093" cy="151" r="9" fill="#c84d32"/><circle cx="1110" cy="178" r="8" fill="#c84d32"/>
+<path d="M945 104v65q0 15 15 15v74m15-154v64m-15-64v64m15 0q0 16-15 16" fill="none" stroke="#71815d" stroke-width="5" stroke-linecap="round"/>
+<text x="72" y="70" font-family="Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="3" fill="#8a9675">LESS SCROLLING. MORE SAVORING.</text>
+<text x="66" y="199" font-family="Arial,sans-serif" font-size="126" font-weight="800" letter-spacing="-8" fill="#30452e">crave<tspan fill="#e85d36">.</tspan></text>
+<text x="75" y="248" font-family="Arial,sans-serif" font-size="27" fill="#30452e">Rate your cravings. Find your next favorite bite.</text>
+<text x="76" y="305" font-family="Arial,sans-serif" font-size="15" letter-spacing="1.5" fill="#738164">24 DISHES  ·  REAL RESTAURANTS  ·  YOUR NEIGHBORHOOD</text>
+</svg>
