@@ -26,6 +26,8 @@
 
 > **Just bring your appetite.** Visitors enter a ZIP code and search—no API key, account, or browser setup. The app owner configures Geoapify once on Vercel. Incognito sessions work the same way; only locally saved food choices disappear when a private session ends.
 
+![Crave showing real restaurants within a five-minute drive of ZIP 85083](docs/crave-app.jpg)
+
 ## Dinner, without the debate
 
 You know the feeling: everyone’s hungry, nobody has a plan, and another endless list of restaurants isn’t helping.
@@ -183,7 +185,9 @@ The current suite contains **50 passing tests** covering cuisine ranking, confli
 
 The production Vercel page was also checked in Chrome: the map loaded, rating a dish worked, the editable list reflected the choice, and Undo restored the previous answer. No console errors were observed during those checks.
 
-Provider tests use explicit fixtures. They do **not** prove live Geoapify availability or latency. Live server-to-Geoapify verification requires the owner’s Production Secret. Tests additionally verify that fresh sessions need no credentials, provider errors do not leak keys, and oversized requests are rejected before spending provider credits. No fixture restaurants are shipped as app results.
+Live production search was verified on October 28, 2026 with the server-managed Geoapify key: ZIP **85083** returned **106 places within five miles** and **7 places within a five-minute drive**. Chrome displayed the map, restaurant cards, estimated drive times, and a Local badge without asking for a key; no console errors were observed. A separate request without cookies or credentials also succeeded. These results are a point-in-time check, not an availability or latency guarantee.
+
+Automated provider tests use explicit fixtures and additionally verify that fresh sessions need no credentials, provider errors do not leak keys, and oversized requests are rejected before spending provider credits. No fixture restaurants are shipped as app results.
 
 ## Contributing
 
