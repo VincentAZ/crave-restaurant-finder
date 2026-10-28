@@ -12,7 +12,7 @@
   &nbsp;·&nbsp;
   <a href="#get-running-in-a-minute">Run locally</a>
   &nbsp;·&nbsp;
-  <a href="#connect-restaurant-search">Connect Geoapify</a>
+  <a href="#server-setup-for-the-owner">Server setup</a>
   &nbsp;·&nbsp;
   <a href="https://vercel.com/ai-learning-center/crave-restaurant-finder">Vercel dashboard</a>
 </p>
@@ -24,11 +24,7 @@
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/Hosted_on-Vercel-000000?style=flat-square">
 </p>
 
-> **Bring your appetite—and a Geoapify key.** Restaurant search requires a key from your own Geoapify account. Save it once per browser through **Connect restaurant search**. The interface and food quiz can be explored before connecting. Live provider speed and results have not yet been verified with an account key.
-
-![Crave running on Vercel: food quiz, ZIP search, and the loaded Phoenix map](docs/crave-app.jpg)
-
-*Actual deployed interface before connecting a Geoapify key; no restaurant results are simulated.*
+> **Just bring your appetite.** Visitors enter a ZIP code and search—no API key, account, or browser setup. The app owner configures Geoapify once on Vercel. Incognito sessions work the same way; only locally saved food choices disappear when a private session ends.
 
 ## Dinner, without the debate
 
@@ -55,7 +51,7 @@ No mystery match percentages. No invented reviews. Just your cravings, reported 
 
 **Example: you’re in ZIP 85083 and can drive 15 minutes.**
 
-1. **Connect restaurant search.** Complete the one-time Geoapify setup below.
+1. **Open Crave.** There is no visitor setup or API key prompt.
 2. **Choose your area.** Enter `85083`, select **Drive time · minutes**, and choose **15 minutes**.
 3. **Find restaurants.** The cooking indicator shows the search stage. You can rate dishes while it runs.
 4. **Follow your appetite.** Burger → **Yum**. Sushi → **Nah**. Pasta → **Hmm, maybe**.
@@ -97,39 +93,38 @@ cd crave-restaurant-finder
 npm run dev
 ```
 
-Open **http://localhost:4387**.
+Open **http://localhost:4387**. For live restaurant search locally, copy `.env.example` to `.env.local`, fill in your development Geoapify key, and restart the server. Node loads this ignored file automatically.
 
 ```bash
 npm test       # Node's built-in test runner
 npm run check  # JavaScript syntax checks
 ```
 
-## Connect restaurant search
+## Server setup (for the owner)
 
-1. Create a free account at [Geoapify MyProjects](https://myprojects.geoapify.com/) and create a project named **Crave**.
-2. Open **API Keys**. Restrict the browser key to the origins you use:
-   - Production: `https://crave-restaurant-finder.vercel.app`
-   - Local development: `http://localhost:4387`
-   - Your own deployment: its exact origin.
-3. Open Crave → **Connect restaurant search**.
-4. Paste the key and select **Save key & search**.
+1. Create a Geoapify project at [MyProjects](https://myprojects.geoapify.com/) if you do not already have one.
+2. Use a key that permits server-to-server requests. A key restricted to browser origins/referrers may reject server requests; use a separate server key if needed.
+3. In [Vercel environment variables](https://vercel.com/ai-learning-center/crave-restaurant-finder/settings/environment-variables), add `GEOAPIFY_API_KEY` as a **Production Secret** (Sensitive).
+4. Deploy after saving the variable. Vercel environment changes apply to new deployments.
 
-The key is saved only in that browser and sent directly to Geoapify. It is not committed to this repository or embedded in the deployment. Each browser needs its own setup. **Restaurant search settings** lets you replace or remove the key; **Data & privacy → Clear my saved data** removes it too.
+The key is read only by the server functions. It never appears in the public JavaScript, browser storage, API responses, or repository. Visitors do not need a Geoapify account. Any key stored by an older browser-based release is removed locally on page load; it is never uploaded.
 
-Geoapify’s free plan has a daily credit allowance. Drive-time searches use more credits than distance searches because they calculate a route to each candidate. Check [Geoapify pricing](https://www.geoapify.com/pricing/) for current limits. Crave does not configure paid upgrades.
+For preview deployments, configure a separate Preview key if live provider tests are needed. Keep `.env.local` ignored and never put secrets under `dist/`.
+
+Geoapify usage is shared across visitors and subject to the owner's plan. Place lookups return at most 200 entries; route requests have at most 120 destinations within 35 miles. Successful place responses can be cached at Vercel's CDN for 15 minutes. A per-instance throttle provides a basic safeguard, not a global quota guarantee; provider quotas remain the shared usage limit. See [Geoapify pricing](https://www.geoapify.com/pricing/).
 
 ## Deploy your own
 
-This is a static app. `vercel.json` tells Vercel to serve `dist/` and run the checks before deployment.
+The frontend is static; two Vercel Functions handle restaurant and driving-time requests. `vercel.json` serves `dist/` and runs checks before deployment. Vercel discovers the functions in `api/` automatically.
 
 1. Fork this repository and import it into Vercel.
 2. Use **Other** as the framework preset and the repository root as the root directory.
 3. Keep the included configuration: output directory `dist`, build command `npm run check && npm test`, and no install command.
-4. Deploy, allow the resulting origin in your Geoapify key restrictions, and connect the key in your browser.
+4. Add `GEOAPIFY_API_KEY` as a server Secret, then deploy. Visitors can search immediately without setup.
 
 **Project links:** [Live app](https://crave-restaurant-finder.vercel.app) · [Repository](https://github.com/VincentAZ/crave-restaurant-finder) · [Vercel dashboard](https://vercel.com/ai-learning-center/crave-restaurant-finder).
 
-The Vercel dashboard requires project access. This repository supports a personal bring-your-own-key experience; a public consumer service would need centrally managed provider access and quota controls.
+The Vercel dashboard requires project access. The provider credential is managed centrally by the owner; it is not supplied by visitors.
 
 ## Data you can understand
 
@@ -150,14 +145,14 @@ The Vercel dashboard requires project access. This repository supports a persona
 - Driving times exclude live traffic. Unavailable routes do not receive made-up estimates.
 - Searches consider up to 200 nearby places. Drive-time mode checks up to 120 candidates selected by taste and proximity. Results are not exhaustive.
 - Dietary filters require affirmative source tags. Always confirm dietary needs directly.
-- The last successful restaurant query is cached for 15 minutes. ZIP lookup has a six-second timeout, provider requests have eight-second deadlines, and the whole search stops after 15 seconds. A deadline limits waiting; it does not guarantee successful results.
+- The last successful restaurant query is cached for 15 minutes. ZIP lookup has a six-second timeout, upstream provider requests have eight-second deadlines, and the whole search stops after 15 seconds. A deadline limits waiting; it does not guarantee successful results.
 - Provider coverage, availability, menus, and opening hours can change.
 
 ## Privacy, in plain English
 
-Food ratings, favorites, search settings, the cached restaurant response, and your Geoapify key stay in browser storage. ZIP codes and coordinates are sent to the providers needed for search and mapping. Fonts load from Google Fonts. There are no analytics.
+Food ratings, favorites, search settings, and the cached restaurant response stay in browser storage. The API key stays on the server. ZIP codes go to Zippopotam.us; search and route coordinates pass through Crave’s server to Geoapify. Map coordinates go to OpenStreetMap. Fonts load from Google Fonts. There are no analytics.
 
-Switching browsers or domains starts a separate profile. Clearing browser data removes saved preferences and credentials.
+Switching browsers or domains starts a separate profile. Clearing browser data removes saved preferences, but does not disconnect restaurant search.
 
 ## Inside the kitchen
 
@@ -168,25 +163,27 @@ dist/
   app.js           Quiz, map, dialogs, search, and favorites
   core.js          Food catalog, cuisine scoring, filters, distances
   api.js           Bounded HTTP requests and ZIP lookup
-  geoapify.js      Places, routing, key storage, and result caching
+  geoapify.js      Same-origin API client, data normalization, result caching
   search.js        Search coordination and cancellation
   ratings.js       Editable choices and undo history
   ownership.js     Reviewed local-ownership evidence
   progress.js      Search-stage presentation
   assets/          Leaflet, its license, and food photography
+api/               Vercel restaurant and route endpoints
+lib/               Server validation, provider authentication, safe errors
 tests/             Behavior and provider-contract tests
 docs/              README artwork
-server.mjs         Local static server
+server.mjs         Local frontend and API server
 vercel.json        Static deployment configuration
 ```
 
 ## Verification
 
-The current suite contains **43 passing tests** covering cuisine ranking, conflicting preferences, travel boundaries, missing routes, cancellation, timeouts, ownership evidence, editable ratings, cache expiry, provider errors, and a simulated ZIP → places → route-matrix flow.
+The current suite contains **50 passing tests** covering cuisine ranking, conflicting preferences, travel boundaries, missing routes, cancellation, timeouts, ownership evidence, editable ratings, cache expiry, provider errors, and a simulated ZIP → places → route-matrix flow.
 
 The production Vercel page was also checked in Chrome: the map loaded, rating a dish worked, the editable list reflected the choice, and Undo restored the previous answer. No console errors were observed during those checks.
 
-Provider tests use explicit fixtures. They do **not** prove live Geoapify availability or latency. Successful live restaurant searches and complete browser verification still require a configured account key. No fixture restaurants are shipped as app results.
+Provider tests use explicit fixtures. They do **not** prove live Geoapify availability or latency. Live server-to-Geoapify verification requires the owner’s Production Secret. Tests additionally verify that fresh sessions need no credentials, provider errors do not leak keys, and oversized requests are rejected before spending provider credits. No fixture restaurants are shipped as app results.
 
 ## Contributing
 

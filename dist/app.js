@@ -1,7 +1,7 @@
 import {dishes,rankPlaces,safeWebsite,validZip,milesBetween} from './core.js';
 import {runSearch,sameSearchSettings} from './search.js';
-import {clearRestaurantCache,locateZip} from './api.js';
-import {createGeoapifyServices,getGeoapifyKey,saveGeoapifyKey} from './geoapify.js';
+import {clearRestaurantCache} from './api.js';
+import {clearGeoapifyCache,removeLegacyProviderKey} from './geoapify.js';
 import {ownershipFor} from './ownership.js';
 import {progressModel} from './progress.js';
 import {updateRating,undoRating} from './ratings.js';
@@ -16,26 +16,7 @@ let places=[],visible=[],origin=null,searchConfig=null,cuisine='all',savedOnly=f
 let map,markers,originLayer,radiusLayer;const markerById=new Map();
 function persist(){try{localStorage.setItem('crave-votes',JSON.stringify(votes));localStorage.setItem('crave-saved',JSON.stringify(saved));}catch{toast('Browser storage is unavailable. Favorites last for this visit.');}}
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),3200);}
-function updateConnectionStatus(){
- const configured=Boolean(getGeoapifyKey());
- $('#connection-status').textContent=configured?'Geoapify key saved in this browser. Search to find your matches.':'One-time setup: connect Geoapify to enable restaurant search.';
- $('#connection-button').textContent=configured?'Restaurant search settings':'Connect restaurant search';
-}
-function showSearchConnection(){
- if(busy){toast('Cancel the current search before changing the connection.');return;}
- $('#dialog-content').innerHTML=`<p class="eyebrow">LET’S STOCK THE KITCHEN</p><h2>Connect restaurant search</h2><p>Crave uses your Geoapify key to find places and calculate drive times. Set it up once in this browser.</p><ol class="connection-steps"><li><a href="https://myprojects.geoapify.com/" target="_blank" rel="noopener noreferrer">Create a free Geoapify account ↗</a> and create a project named Crave.</li><li>Open <strong>API Keys</strong> in that project. In the key’s restrictions, allow this website origin: <code>${escape(location.origin)}</code></li><li>Copy the key and paste it below. The free plan has a daily quota; drive-time searches use more credits than distance searches.</li></ol><form id="connection-form"><label for="geoapify-key">Geoapify API key</label><input id="geoapify-key" type="password" required autocomplete="off" spellcheck="false" placeholder="Paste your API key" aria-describedby="connection-note"><p id="connection-note" class="data-note">Saved only in this browser and sent directly to Geoapify when searching. Each browser needs its own setup. We will check it when you search.</p><p id="connection-error" role="alert"></p><button type="submit" class="primary">Save key & search</button>${getGeoapifyKey()?'<button type="button" class="outline-button" id="disconnect-provider">Remove saved key</button>':''}</form>`;
- $('#info-dialog').showModal();
- $('#connection-form').onsubmit=e=>{
-  e.preventDefault();
-  try{saveGeoapifyKey($('#geoapify-key').value);clearRestaurantCache();updateConnectionStatus();$('#info-dialog').close();search();}
-  catch(error){$('#connection-error').textContent=error.message;}
- };
- const disconnect=$('#disconnect-provider');
- if(disconnect)disconnect.onclick=()=>{saveGeoapifyKey('');clearRestaurantCache();updateConnectionStatus();$('#info-dialog').close();toast('Geoapify key removed from this browser.');};
- $('#geoapify-key').focus();
-}
-$('#connection-button').onclick=showSearchConnection;
-updateConnectionStatus();
+removeLegacyProviderKey();
 function status(msg,error=false){$('#status').textContent=msg;$('#status').classList.toggle('error',error);$('#search-feedback').textContent=msg;$('#search-feedback').classList.toggle('error',error);}
 let progressTimer=null,searchStarted=0;
 function loading(msg,details={stage:'location'}){
@@ -112,8 +93,6 @@ async function search(e){
  const zip=$('#zip').value.trim();
  if(!validZip(zip)){status('Enter a valid 5-digit US ZIP code.',true);$('#zip').focus();return;}
  if(busy)return;
- const apiKey=getGeoapifyKey();
- if(!apiKey){showSearchConnection();status('Connect your free Geoapify key to enable restaurant search.',true);return;}
  controller=new AbortController();
  const signal=controller.signal;
  const config=currentSearchSettings();
@@ -125,7 +104,7 @@ async function search(e){
  $('#surprise').disabled=true;
  for(const id of ['zip','mode','limit'])$('#'+id).disabled=true;
  try{
-  const result=await runSearch(config,{...votes},{signal,onProgress:loading,services:{locateZip,...createGeoapifyServices(apiKey)}});
+  const result=await runSearch(config,{...votes},{signal,onProgress:loading});
   // Commit together: a failed or canceled search cannot mix two neighborhoods.
   origin=result.origin;places=result.places;searchConfig=result.config;
   routeFailed=result.routeFailed;searchMeta=result.searchMeta;
@@ -181,7 +160,7 @@ $('#cuisine-filters').onclick=e=>{const b=e.target.closest('[data-cuisine]');if(
 $('#results').onclick=e=>{const save=e.target.closest('[data-save]'),detail=e.target.closest('[data-detail]');if(save){const id=save.dataset.save,p=visible.find(p=>p.id===id);const exists=saved.some(x=>x.id===id);saved=exists?saved.filter(x=>x.id!==id):[...saved,p];persist();renderResults();toast(exists?'Removed from your saved places.':'Saved for your next food adventure.');}if(detail)showDetails(visible.find(p=>p.id===detail.dataset.detail));};
 $('#load-more').onclick=()=>{shown+=9;renderResults();};$('#surprise').onclick=()=>{if(!visible.length)return;const positives=visible.filter(p=>p.score>0);const candidates=(positives.length?positives:visible).slice(0,12);const random=new Uint32Array(1);crypto.getRandomValues(random);const p=candidates[random[0]%candidates.length];showDetails(p);toast('Let’s make it '+p.name+'!');};
 $('#how-button').onclick=()=>{$('#dialog-content').innerHTML='<h2>Dinner, step by step.</h2>'+$('#use-case-guide').innerHTML;$('#info-dialog').showModal();};
-$('#sources-button').onclick=()=>{$('#dialog-content').innerHTML='<p class="eyebrow">A LITTLE TRANSPARENCY</p><h2>Real places. Honest details.</h2><p>Restaurant data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors (ODbL)</a>, via <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Geoapify</a>. ZIP centers: Zippopotam.us. Road estimates: Geoapify. Map tiles: OpenStreetMap. Food photography: Unsplash. Fonts: Google Fonts.</p><p>Distance is straight-line radius from the ZIP center. Driving times follow roads, exclude live traffic, and are not estimates from your exact address. Time searches check up to 120 cuisine/proximity candidates within a bounded area, so results are not exhaustive.</p><p>Local badges use a small, source-checked ownership register, currently focused on selected Phoenix-area businesses. Missing or expired evidence is labeled unverified; franchises are not automatically labeled local. Community data can miss restaurants, cuisine tags, dietary options, and recent changes. We do not invent ratings, prices, opening status, or menu availability.</p><p>Your votes, favorites, and last successful restaurant search stay in this browser’s storage. Restaurant searches are cached for 15 minutes. ZIP codes and map coordinates are sent to the listed data providers to run your search. Restaurant search uses your Geoapify account key, stored only in this browser and sent to Geoapify. Clearing saved data removes the key too.</p><button class="outline-button" id="clear-data">Clear my saved data</button>';$('#info-dialog').showModal();$('#clear-data').onclick=()=>{clearTimeout(voteTimer);voteBusy=false;$('#vote-stamp').classList.remove('show');votes={};history=[];saved=[];clearRestaurantCache();saveGeoapifyKey('');updateConnectionStatus();try{localStorage.removeItem('crave-search');}catch{}persist();renderQuiz();renderResults();$('#info-dialog').close();toast('Your taste profile and saved places were cleared.');};};
+$('#sources-button').onclick=()=>{$('#dialog-content').innerHTML='<p class="eyebrow">A LITTLE TRANSPARENCY</p><h2>Real places. Honest details.</h2><p>Restaurant data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors (ODbL)</a>, via <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Geoapify</a>. ZIP centers: Zippopotam.us. Road estimates: Geoapify. Map tiles: OpenStreetMap. Food photography: Unsplash. Fonts: Google Fonts.</p><p>Distance is straight-line radius from the ZIP center. Driving times follow roads, exclude live traffic, and are not estimates from your exact address. Time searches check up to 120 cuisine/proximity candidates within a bounded area, so results are not exhaustive.</p><p>Local badges use a small, source-checked ownership register, currently focused on selected Phoenix-area businesses. Missing or expired evidence is labeled unverified; franchises are not automatically labeled local. Community data can miss restaurants, cuisine tags, dietary options, and recent changes. We do not invent ratings, prices, opening status, or menu availability.</p><p>Your votes, favorites, and last successful restaurant search stay in this browser’s storage. Restaurant searches are cached for 15 minutes. ZIP codes and map coordinates are sent to the listed data providers to run your search. Crave’s server connects to Geoapify for everyone. Visitors never need an API key. Search coordinates pass through our server to Geoapify; your food ratings stay in this browser.</p><button class="outline-button" id="clear-data">Clear my saved data</button>';$('#info-dialog').showModal();$('#clear-data').onclick=()=>{clearTimeout(voteTimer);voteBusy=false;$('#vote-stamp').classList.remove('show');votes={};history=[];saved=[];clearRestaurantCache();clearGeoapifyCache();try{localStorage.removeItem('crave-search');}catch{}persist();renderQuiz();renderResults();$('#info-dialog').close();toast('Your taste profile and saved places were cleared.');};};
 $('.dialog-close').onclick=()=>$('#info-dialog').close();$('#info-dialog').addEventListener('click',e=>{if(e.target===$('#info-dialog')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();}});
 const lastSearch=read('crave-search',null);if(lastSearch&&validZip(lastSearch.zip)&&['distance','time'].includes(lastSearch.mode)){$('#zip').value=lastSearch.zip;$('#mode').value=lastSearch.mode;$('#mode').onchange();if([...$('#limit').options].some(o=>o.value===String(lastSearch.limit)))$('#limit').value=String(lastSearch.limit);}
 initializeMap();renderQuiz();renderResults();

@@ -1,6 +1,6 @@
 import {preferences,cuisineScore,validZip} from './core.js';
 import {locateZip} from './api.js';
-import {createGeoapifyServices,getGeoapifyKey} from './geoapify.js';
+import {createGeoapifyServices} from './geoapify.js';
 
 export function sameSearchSettings(current,completed){
  return Boolean(completed)&&current.zip===completed.zip&&current.mode===completed.mode&&current.limit===completed.limit;
@@ -8,7 +8,7 @@ export function sameSearchSettings(current,completed){
 
 // Build a complete search before replacing the results currently on screen.
 export async function runSearch(config,votes,{signal,onProgress=()=>{},services}={}){
- services??={locateZip,...createGeoapifyServices(getGeoapifyKey())};
+ services??={locateZip,...createGeoapifyServices()};
  const deadline=new AbortController();
  const abort=()=>deadline.abort(signal.reason);
  signal?.throwIfAborted();
