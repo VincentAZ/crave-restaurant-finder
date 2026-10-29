@@ -207,4 +207,8 @@ For changes, run `npm test` and `npm run check`. Keep cuisine and ownership clai
 
 [Leaflet](https://leafletjs.com/) is distributed under its included BSD-2-Clause license. Map and restaurant source data include [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) under ODbL. Food photography comes from [Unsplash](https://unsplash.com/license). Geoapify and other services have their own usage terms.
 
-This repository does not yet declare a license for the application source. Public visibility alone does not grant additional reuse rights.
+## License
+
+The original application code is free and open source under the [MIT License](LICENSE), copyright © 2026 Vincent Serpico. Use it, modify it, redistribute it, or build a business with it; keep the copyright and permission notice with copies or substantial portions of the code.
+
+Third-party code, photographs, map data, fonts, and services retain their own licenses and terms. The MIT grant does not relicense Leaflet, Unsplash photography, OpenStreetMap data, or provider content. Preserve the credits above and the bundled [Leaflet license](dist/assets/LEAFLET-LICENSE.txt).
