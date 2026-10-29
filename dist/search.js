@@ -1,4 +1,4 @@
-import {preferences,cuisineScore,validZip} from './core.js';
+import {tasteProfile,tasteCandidates,validZip} from './core.js';
 import {locateZip} from './api.js';
 import {createGeoapifyServices} from './geoapify.js';
 
@@ -7,7 +7,7 @@ export function sameSearchSettings(current,completed){
 }
 
 // Build a complete search before replacing the results currently on screen.
-export async function runSearch(config,votes,{signal,onProgress=()=>{},services}={}){
+export async function runSearch(config,votes,{cravings=[],signal,onProgress=()=>{},services}={}){
  services??={locateZip,...createGeoapifyServices()};
  const deadline=new AbortController();
  const abort=()=>deadline.abort(signal.reason);
@@ -15,7 +15,7 @@ export async function runSearch(config,votes,{signal,onProgress=()=>{},services}
  signal?.addEventListener('abort',abort,{once:true});
  let timedOut=false;
  const timer=setTimeout(()=>{timedOut=true;deadline.abort();},15000);
- try{return await completeSearch(config,votes,{signal:deadline.signal,onProgress,services});}
+ try{return await completeSearch(config,votes,{cravings,signal:deadline.signal,onProgress,services});}
  catch(error){
   signal?.throwIfAborted();
   if(timedOut)throw new Error('Search stopped after 15 seconds because a data service was too slow. Your food choices are saved. Try Distance if driving times are unavailable.');
@@ -23,7 +23,7 @@ export async function runSearch(config,votes,{signal,onProgress=()=>{},services}
  }finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
 }
 
-async function completeSearch(config,votes,{signal,onProgress,services}){
+async function completeSearch(config,votes,{cravings,signal,onProgress,services}){
  signal?.throwIfAborted();
  const limits=config.mode==='time'?[5,10,15,20,30,45]:[1,3,5,10,15,25];
  if(!validZip(config.zip)||!['distance','time'].includes(config.mode)||!limits.includes(config.limit))throw new Error('Please choose a valid ZIP code and travel limit.');
@@ -35,13 +35,13 @@ async function completeSearch(config,votes,{signal,onProgress,services}){
  places=places.map(p=>({...p})).sort((a,b)=>a.miles-b.miles);
  let routeFailed=0,searchMeta='';
  if(config.mode==='time'){
-  const pref=preferences(votes);
-  places.sort((a,b)=>cuisineScore(b.cuisines,pref)-cuisineScore(a.cuisines,pref)||a.miles-b.miles);
-  const total=places.length;
-  places=places.slice(0,120);
+  const candidates=tasteCandidates(places,tasteProfile(votes,cravings));
+  candidates.sort((a,b)=>b.score-a.score||a.miles-b.miles);
+  const total=candidates.length;
+  places=candidates.slice(0,120);
   searchMeta=`Drive times checked for ${places.length} ${total>120?'candidates selected by your current taste and proximity':'places'} within a ${radius}-mile search area. `;
   onProgress(`Calculating road travel times for ${places.length} places…`,{stage:'routes',completed:0,total:places.length});
-  routeFailed=await services.addDriveTimes(places,origin,signal,(n,total)=>onProgress(`Checking road routes… ${n} of ${total} places.`,{stage:'routes',completed:n,total}));
+  if(places.length)routeFailed=await services.addDriveTimes(places,origin,signal,(n,total)=>onProgress(`Checking road routes… ${n} of ${total} places.`,{stage:'routes',completed:n,total}));
   if(places.length&&routeFailed===places.length)throw new Error('Driving times are unavailable right now. Switch to Distance to explore nearby places, or try again shortly.');
  }
  signal?.throwIfAborted();

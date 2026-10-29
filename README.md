@@ -32,7 +32,7 @@
 
 You know the feeling: everyone’s hungry, nobody has a plan, and another endless list of restaurants isn’t helping.
 
-Crave starts with the food. Say **Yum**, **Hmm, maybe**, or **Nah** to a few dishes. Enter your ZIP code, set how far you’ll go, and explore restaurants on a map, ordered around your cuisine preferences.
+Crave starts with the food. Say **Yum**, **Meh**, or **Nah** to a few dishes. Enter your ZIP code, set how far you’ll go, and explore restaurants on a map, ordered around your cuisine preferences.
 
 No mystery match percentages. No invented reviews. Just your cravings, reported cuisine data, and actual nearby places.
 
@@ -41,7 +41,8 @@ No mystery match percentages. No invented reviews. Just your cravings, reported 
 | Feature | What it does |
 | --- | --- |
 | **A 24-dish taste quiz** | Rate burgers, ramen, tacos, pasta, and more. Stop whenever you have a feel for what sounds good. |
-| **Editable food choices** | Revisit every answer in one list. Undo an edit, clear a rating, or reset your profile. |
+| **Editable food choices** | Revisit every answer in one list. Yum is a first choice, Meh is a backup, and Nah excludes matching places. Undo an edit, clear a rating, or reset your profile. |
+| **Craving right now** | Pick one or more foods or cuisines for this meal. Temporarily treat them as Yum and focus results on them without changing saved ratings. |
 | **ZIP + travel limits** | Search by straight-line distance or estimated road driving time from the ZIP center. |
 | **An interactive map** | Numbered pins match the cards. Explore details and open driving directions. |
 | **Food-themed progress** | A simmering pot, elapsed time, and actual search stages keep you informed. |
@@ -56,22 +57,25 @@ No mystery match percentages. No invented reviews. Just your cravings, reported 
 1. **Open Crave.** There is no visitor setup or API key prompt.
 2. **Choose your area.** Enter `85083`, select **Drive time · minutes**, and choose **15 minutes**.
 3. **Find restaurants.** The cooking indicator shows the search stage. You can rate dishes while it runs.
-4. **Follow your appetite.** Burger → **Yum**. Sushi → **Nah**. Pasta → **Hmm, maybe**.
-5. **Browse your matches.** Preferred cuisines move up the list. Map numbers correspond to restaurant cards.
+4. **Follow your appetite.** Burger → **Yum**. Sushi → **Nah**. Pasta → **Meh**.
+5. **Browse your matches.** Nah matches are excluded. Yum matches come first; Meh backups appear if any Yum choice has no match. Map numbers correspond to restaurant cards.
 6. **Check the details.** Review the website, listed hours, ownership evidence, and directions. Confirm current menus with the restaurant.
-7. **Change your mind anytime.** Open **Your food choices** and edit a rating. Loaded results reorder immediately without another restaurant lookup.
+7. **Change your mind anytime.** Open **Your food choices** and edit a saved rating, or choose **Craving right now** for this meal. Loaded results update immediately. **Find my cravings** searches if needed, including refreshing drive-time candidates after a taste change. **Use my usual tastes** clears the temporary choices.
 
 You can also rate dishes first and select **Show my matches**. All 24 ratings are optional.
 
 ## How matching works
 
-Crave uses a small, explainable cuisine-ranking system:
+Crave applies your choices to reported cuisine tags:
 
-- **Yum** adds a strong preference (`+3`).
-- **Hmm, maybe** adds a mild preference (`+1`).
-- **Nah** lowers priority (`−2`); it does not hide the restaurant.
-- Specific food preferences take priority over broader cuisine families. Liking ramen does not cancel a dislike of sushi.
-- Unknown cuisine stays unknown. A restaurant name or a food photograph is not evidence of a dish on the menu.
+- **Nah** excludes the entire restaurant when any matching food is rated Nah, even if it also serves a Yum. This applies to cards, map pins, saved results, sorting, and surprise picks.
+- **Yum** is the first choice. **Meh** appears only when at least one Yum food has no eligible restaurant after travel, dietary, cuisine, and saved-place filters. The results explain which Yum choices are missing. If no Yum is set, Meh options can be shown.
+- Yum matches always precede Meh backups. Distance or driving-time sorting orders restaurants within those groups.
+- **Craving right now** focuses results on the selected foods and temporarily treats them as Yum, overriding their own saved Meh or Nah. Other Nah ratings still exclude a place. Current cravings clear on reload or **Use my usual tastes**; saved ratings are unchanged. Missing current cravings do not silently broaden the search to unrelated food.
+- Specific reported tags distinguish related foods: sushi + Japanese is evaluated as sushi, while ramen + Japanese is evaluated as ramen. A place explicitly tagged with both sushi and ramen is excluded if either is Nah. A broad Japanese-only or Italian-only tag uses the applicable ratings conservatively: a matching Nah wins.
+- With positive ratings or a current craving, only matching rated cuisines are included. Before positive ratings are set, other cuisines and unknown cuisines remain explorable after Nah exclusions. Cuisine tags cannot establish a dish's presence on today's menu.
+
+Driving searches exclude Nah candidates and prioritize current cravings before the 120-route limit. Meh candidates are retained until road times are known, because a Yum may be outside the travel limit. After changing choices, loaded results update immediately; the interface prompts another search when driving candidates need refreshing.
 
 ```mermaid
 flowchart LR
@@ -152,7 +156,7 @@ The Vercel dashboard requires project access. The provider credential is managed
 
 ## Privacy, in plain English
 
-Food ratings, favorites, search settings, and the cached restaurant response stay in browser storage. The API key stays on the server. ZIP codes go to Zippopotam.us; search and route coordinates pass through Crave’s server to Geoapify. Map coordinates go to OpenStreetMap. Fonts load from Google Fonts. There are no analytics.
+Food ratings, favorites, search settings, and the cached restaurant response stay in browser storage. Current cravings stay only in page memory and clear on reload. The API key stays on the server. ZIP codes go to Zippopotam.us; search and route coordinates pass through Crave’s server to Geoapify. Map coordinates go to OpenStreetMap. Fonts load from Google Fonts. There are no analytics.
 
 Switching browsers or domains starts a separate profile. Clearing browser data removes saved preferences, but does not disconnect restaurant search.
 
@@ -181,7 +185,9 @@ vercel.json        Static deployment configuration
 
 ## Verification
 
-The current suite contains **50 passing tests** covering cuisine ranking, conflicting preferences, travel boundaries, missing routes, cancellation, timeouts, ownership evidence, editable ratings, cache expiry, provider errors, and a simulated ZIP → places → route-matrix flow.
+The current suite contains **60 passing tests** covering Nah vetoes, conditional Meh fallback, temporary cravings, conflicting cuisine preferences, travel boundaries, missing routes, cancellation, timeouts, ownership evidence, editable ratings, cache expiry, provider errors, and a simulated ZIP → places → route-matrix flow.
+
+The updated craving flow was checked in Chrome using the local frontend and a temporary preview proxy to the existing public production APIs (no local provider key). ZIP **85083** verified that missing Thai Yum matches enabled burger Meh backups, available Mexican Yum matches hid those backups, and a current burger craving returned **1 place within a five-minute drive** while the saved burger rating stayed Meh. Restoring usual tastes refreshed driving candidates and returned **2 Yum matches**. Reloading cleared the temporary craving and retained the saved rating. No browser console errors were observed. These are point-in-time checks; the preview proxy is not part of the application.
 
 The production Vercel page was also checked in Chrome: the map loaded, rating a dish worked, the editable list reflected the choice, and Undo restored the previous answer. No console errors were observed during those checks.
 

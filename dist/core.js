@@ -25,15 +25,42 @@ export const dishes = [
   {id:'dessert', image:'dessert', name:'Leave room for happy', cuisine:'Dessert', tags:['ice_cream','dessert','cake'], emoji:'🍨', note:'The sweetest way to finish your food adventure.'},
 ];
 export function milesBetween(a,b){const r=Math.PI/180;const dlat=(b.lat-a.lat)*r,dlng=(b.lng-a.lng)*r;const h=Math.sin(dlat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dlng/2)**2;return 3958.7613*2*Math.asin(Math.min(1,Math.sqrt(h)));}
-export function preferences(votes){const out={};for(const d of dishes){if(!(d.id in votes))continue;for(const t of d.tags){(out[t]??=[]).push(votes[d.id]);}}return Object.fromEntries(Object.entries(out).map(([t,v])=>[t,v.reduce((a,b)=>a+b,0)/v.length]));}
-// Specific food votes take priority over their shared cuisine family.
+// A specific cuisine tag is better evidence than its broad family tag.
 const cuisineFamilies={japanese:['sushi','ramen'],italian:['pizza','pasta']};
-export function cuisineScore(cuisines,pref){
- const known=cuisines.filter(c=>Object.hasOwn(pref,c));
- const specific=known.filter(c=>!cuisineFamilies[c]?.some(child=>known.includes(child)));
- return specific.length?Math.max(...specific.map(c=>pref[c])):0;
+export function tasteProfile(votes={},cravings=[]){
+ const selected=dishes.filter(d=>cravings.includes(d.id)).map(d=>d.id);
+ const ratings=dishes.flatMap(d=>{
+  const vote=selected.includes(d.id)?3:votes[d.id];
+  return [-2,1,3].includes(vote)?[{...d,vote}]:[];
+ });
+ return {ratings,cravings:selected,yums:ratings.filter(d=>d.vote===3&&(!selected.length||selected.includes(d.id))).map(d=>d.id)};
+}
+function cuisineTaste(cuisines,profile){
+ const specific=cuisines.filter(c=>!cuisineFamilies[c]?.some(child=>cuisines.includes(child)));
+ const matches=profile.ratings.filter(d=>d.tags.some(t=>specific.includes(t)));
+ const yums=matches.filter(d=>profile.yums.includes(d.id)).map(d=>d.id);
+ return {blocked:matches.some(d=>d.vote===-2),yums,score:yums.length?3:matches.some(d=>d.vote===1)?1:0};
+}
+// Keep Meh candidates until travel times are known: a Yum may be out of reach.
+export function tasteCandidates(places,profile){
+ const hasPositive=profile.ratings.some(d=>d.vote>0);
+ return places.flatMap(p=>{
+  const taste=cuisineTaste(p.cuisines,profile);
+  if(taste.blocked||(profile.cravings.length&&!taste.yums.length)||(hasPositive&&!taste.score))return [];
+  return [{...p,score:taste.score,matchedYums:taste.yums,match:profile.cravings.length?'Craving right now':taste.score===3?'Yum match':taste.score===1?'Meh · backup option':'Not rated · explore the menu'}];
+ });
 }
 export function normalizePlaces(elements,origin){const seen=new Set();return elements.flatMap(e=>{const t=e.tags||{},lat=e.lat??e.center?.lat,lng=e.lon??e.center?.lon;if(!['node','way','relation'].includes(e.type)||!Number.isSafeInteger(e.id)||e.id<1||!t.name||!Number.isFinite(lat)||!Number.isFinite(lng))return [];const key=t.name.toLowerCase()+':'+lat.toFixed(3)+':'+lng.toFixed(3);if(seen.has(key))return [];seen.add(key);return [{id:e.type+'/'+e.id,name:t.name,lat,lng,cuisines:(t.cuisine||'').toLowerCase().split(';').map(s=>s.trim()).filter(Boolean),address:[t['addr:housenumber'],t['addr:street'],t['addr:city']].filter(Boolean).join(' '),website:t.website||t['contact:website']||'',phone:t.phone||t['contact:phone']||'',hours:t.opening_hours||'',vegetarian:t['diet:vegetarian'],vegan:t['diet:vegan'],miles:milesBetween(origin,{lat,lng}),minutes:null}];});}
-export function rankPlaces(places,{votes={},mode='distance',limit=5,diet='any',cuisine='all',savedOnly=false,saved=[],sort='match'}){const pref=preferences(votes);return places.filter(p=>(mode==='time'?Number.isFinite(p.minutes)&&p.minutes>=0&&p.minutes<=limit:p.miles<=limit)&&(diet==='any'||['yes','only','designated'].includes(p[diet]))&&(cuisine==='all'||p.cuisines.includes(cuisine))&&(!savedOnly||saved.includes(p.id))).map(p=>{const score=cuisineScore(p.cuisines,pref);return {...p,score,match:score>1?'Your kind of food':score>0?'Worth a taste':score<0?'Outside your cravings':'Something to explore'};}).sort((a,b)=>sort==='nearest'?a.miles-b.miles:sort==='fastest'?(a.minutes??Infinity)-(b.minutes??Infinity):b.score-a.score||a.miles-b.miles);}
+export function matchPlaces(places,{votes={},cravings=[],mode='distance',limit=5,diet='any',cuisine='all',savedOnly=false,saved=[],sort='match'}={}){
+ const profile=tasteProfile(votes,cravings);
+ const eligible=places.filter(p=>(mode==='time'?Number.isFinite(p.minutes)&&p.minutes>=0&&p.minutes<=limit:p.miles<=limit)&&(diet==='any'||['yes','only','designated'].includes(p[diet]))&&(cuisine==='all'||p.cuisines.includes(cuisine))&&(!savedOnly||saved.includes(p.id)));
+ const candidates=tasteCandidates(eligible,profile);
+ const missingYums=profile.yums.filter(id=>!candidates.some(p=>p.matchedYums.includes(id)));
+ const allowMeh=!profile.yums.length||missingYums.length>0;
+ const matches=candidates.filter(p=>p.score!==1||allowMeh).sort((a,b)=>
+  b.score-a.score||(sort==='fastest'?(a.minutes??Infinity)-(b.minutes??Infinity):a.miles-b.miles)||a.miles-b.miles);
+ return {places:matches,missingYums,showingMeh:matches.some(p=>p.score===1)};
+}
+export function rankPlaces(places,options){return matchPlaces(places,options).places;}
 export function safeWebsite(url){try{const u=new URL(url);return ['https:','http:'].includes(u.protocol)?u.href:null;}catch{return null;}}
 export function validZip(zip){return /^\d{5}$/.test(zip);}

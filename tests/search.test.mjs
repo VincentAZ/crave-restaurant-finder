@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {runSearch,sameSearchSettings} from '../dist/search.js';
+import {rankPlaces} from '../dist/core.js';
 
 const config={zip:'85004',mode:'time',limit:15};
 const origin={lat:33.4557,lng:-112.0686,zip:'85004',label:'Phoenix, AZ'};
@@ -46,4 +47,27 @@ test('one total deadline cancels slow work and preserves the failure boundary',a
  const pending=assert.rejects(runSearch(config,{}, {services:{...base,locateZip:(_,signal)=>{observed=signal;return new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(signal.reason),{once:true}));}}}),/stopped after 15 seconds/);
  t.mock.timers.tick(15000);await pending;assert.equal(observed.aborted,true);
  t.mock.timers.reset();
+});
+
+test('routing excludes Nah places before spending the candidate budget',async()=>{
+ const blocked=Array.from({length:130},(_,i)=>({id:'blocked-'+i,cuisines:['sushi','ramen'],miles:.1,minutes:null}));
+ const result=await runSearch(config,{sushi:-2,ramen:3},{services:{...base,findRestaurants:async()=>[...blocked,fixtures[1]],addDriveTimes:async places=>{
+  assert.deepEqual(places.map(p=>p.id),['node/2']);places[0].minutes=5;return 0;
+ }}});
+ assert.equal(result.places.length,1);
+});
+test('routing keeps Meh candidates until Yum travel times are known',async()=>{
+ const result=await runSearch(config,{sushi:1,ramen:3},{services:{...base,addDriveTimes:async places=>{
+  assert.equal(places.length,2);places.find(p=>p.id==='node/2').minutes=25;places.find(p=>p.id==='node/1').minutes=5;return 0;
+ }}});
+ assert.deepEqual(rankPlaces(result.places,{votes:{sushi:1,ramen:3},mode:'time',limit:15}).map(p=>p.id),['node/1']);
+});
+test('current cravings guide routing and leave the saved taste unchanged',async()=>{
+ const votes=Object.freeze({sushi:3,ramen:1});
+ const result=await runSearch(config,votes,{cravings:['ramen'],services:base});
+ assert.deepEqual(result.places.map(p=>p.id),['node/2']);assert.equal(votes.ramen,1);
+});
+test('excluding every candidate returns empty results without a route request',async()=>{
+ const result=await runSearch(config,{sushi:-2,ramen:-2},{services:{...base,addDriveTimes:()=>{throw Error('Must not route');}}});
+ assert.deepEqual(result.places,[]);assert.equal(result.routeFailed,0);
 });
