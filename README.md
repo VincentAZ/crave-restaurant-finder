@@ -26,7 +26,9 @@
 
 > **Just bring your appetite.** Visitors enter a ZIP code and search—no API key, account, or browser setup. The app owner configures Geoapify once on Vercel. Incognito sessions work the same way; only locally saved food choices disappear when a private session ends.
 
-![Crave showing real restaurants within a five-minute drive of ZIP 85083](docs/crave-app.jpg)
+![Crave with Burgers selected under Craving right now, the Meh rating option, and a matching restaurant within a five-minute drive of ZIP 85083](docs/crave-app.jpg)
+
+*Current interface captured in the local preview using the live restaurant and driving-time APIs. The burger craving is temporary; saved ratings stay unchanged. Results vary with preferences and provider data.*
 
 ## Dinner, without the debate
 
